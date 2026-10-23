@@ -1,0 +1,46 @@
+name: Source checks
+'on':
+  push:
+    branches:
+    - main
+    paths:
+    - resources/profiles/**
+    - localization/**
+    - scripts/orca_extra_profile_check.py
+    - .github/workflows/source-checks.yml
+  pull_request:
+    paths:
+    - resources/profiles/**
+    - localization/**
+    - scripts/orca_extra_profile_check.py
+    - .github/workflows/source-checks.yml
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: source-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  profiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - run: python3 scripts/orca_extra_profile_check.py
+      name: Run checked-in profile validation
+  translations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - run: 'sudo apt-get update
+
+        sudo apt-get install -y gettext'
+    - name: Validate translation format strings
+      run: "set -euo pipefail\ncount=0\nwhile IFS= read -r -d \"\" source; do\n  msgfmt --check-format -o /dev/null\
+        \ \"$source\"\n  count=$((count + 1))\ndone < <(find localization/i18n -name \"Snapmaker_Orca_*.po\" -print0)\n\
+        test \"$count\" -gt 0\necho \"Validated $count translation catalogs\""
